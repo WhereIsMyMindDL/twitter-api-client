@@ -30,14 +30,15 @@ if platform.system() != 'Windows':
 
 
 class Scraper:
-    def __init__(self, email: str = None, username: str = None, password: str = None, session: Client = None, **kwargs):
-        self.save = kwargs.get('save', True)
+    def __init__(self, email: str = None, username: str = None, password: str = None, proxies=None, session: Client = None, **kwargs):
+        self.save = kwargs.get('save', False)
         self.debug = kwargs.get('debug', 0)
         self.pbar = kwargs.get('pbar', True)
         self.out = Path(kwargs.get('out', 'data'))
         self.guest = False
         self.logger = self._init_logger(**kwargs)
         self.session = self._validate_session(email, username, password, session, **kwargs)
+        self.proxies = proxies
 
     def users(self, screen_names: list[str], **kwargs) -> list[dict]:
         """
@@ -540,7 +541,8 @@ class Scraper:
         limits = Limits(max_connections=100, max_keepalive_connections=10)
         headers = self.session.headers if self.guest else get_headers(self.session)
         cookies = self.session.cookies
-        async with AsyncClient(limits=limits, headers=headers, cookies=cookies, timeout=20) as c:
+        proxies = self.proxies
+        async with AsyncClient(limits=limits, headers=headers, cookies=cookies, timeout=20, proxies=proxies) as c:
             tasks = (self._paginate(c, operation, **q, **kwargs) for q in queries)
             if self.pbar:
                 return await tqdm_asyncio.gather(*tasks, desc=operation[-1])
@@ -824,4 +826,4 @@ class Scraper:
     def save_cookies(self, fname: str = None):
         """ Save cookies to file """
         cookies = self.session.cookies
-        Path(f'{fname or cookies.get("username")}.cookies').write_bytes(orjson.dumps(dict(cookies)))
+        #Path(f'{fname or cookies.get("username")}.cookies').write_bytes(orjson.dumps(dict(cookies)))
